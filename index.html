@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 그림판</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            border: 1px solid black;
+            display: none;
+            margin-top: 20px;
+        }
+
+        #controls {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #session-list {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #clients {
+            list-style: none;
+            padding: 0;
+        }
+
+        #popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border: 1px solid black;
+            z-index: 10;
+            text-align: center;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+
+        /* Placeholder 텍스트 스타일 설정 */
+        input::placeholder {
+            color: #999; /* 흐리게 보이도록 회색 설정 */
+            font-style: italic; /* 기울임꼴로 표시 */
+        }
+    </style>
+</head>
+<body>
+    <h1>실시간 그림판</h1>
+
+    <div id="session-list">
+        <h3>사용 가능한 방</h3>
+        <ul id="sessions"></ul>
+        <button id="create-session">방 만들기</button>
+    </div>
+
+    <div id="controls">
+        <button id="leave-session">방 나가기</button>
+        <label for="color-picker">색상 선택:</label>
+        <input type="color" id="color-picker" value="#000000">
+        <button id="toggle-pencil">연필/지우개 전환</button>
+        <h3>현재 접속자</h3>
+        <ul id="clients"></ul>
+    </div>
+
+    <canvas id="drawing-board" width="800" height="600"></canvas>
+
+    <div id="overlay"></div>
+    <div id="popup">
+        <h3 id="popup-title">팝업</h3>
+        <input type="text" id="popup-input1" placeholder="닉네임 입력">
+        <input type="password" id="popup-input2" placeholder="비밀번호 입력">
+        <button id="popup-submit">확인</button>
+        <button id="popup-cancel">취소</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
