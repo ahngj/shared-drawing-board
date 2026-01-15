@@ -1,125 +1,87 @@
 const WebSocket = require('ws');
 
-// WebSocket 서버 생성
+// WebSocket 서버 생성 (포트 3000)
 const server = new WebSocket.Server({ port: 3000 });
-const sessions = new Map(); // Map<sessionId, { clients: Map<socket, { nickname, color, tool }>, drawings: [] }>
+const sessions = new Map(); // 메모리 세션 관리 (추후 Redis 대체 가능)
+
+console.log("🚀 EC2 WebSocket Server Started on port 3000");
 
 server.on('connection', (socket) => {
     console.log('New client connected');
 
-    // 새 클라이언트에게 현재 세션 목록 전송
-    const sessionList = Array.from(sessions.keys());
-    socket.send(JSON.stringify({ type: 'sessionList', sessions: sessionList }));
-
     socket.on('message', (message) => {
-        const data = JSON.parse(message);
+        let data;
+        try {
+            data = JSON.parse(message);
+        } catch (e) {
+            console.error("Invalid JSON");
+            return;
+        }
 
-        if (data.type === 'createSession') {
-            if (!sessions.has(data.sessionId)) {
-                sessions.set(data.sessionId, { clients: new Map(), drawings: [] });
-                console.log(`Session ${data.sessionId} created.`);
-                broadcastSessionList();
-            } else {
-                socket.send(JSON.stringify({ type: 'error', message: 'Session already exists.' }));
-            }
-        } else if (data.type === 'join') {
+        // 1. 방 입장 처리
+        if (data.type === 'join') {
             const { sessionId, nickname } = data;
-            const session = sessions.get(sessionId);
 
-            if (!session) {
-                socket.send(JSON.stringify({ type: 'error', message: 'Session does not exist.' }));
-                return;
+            if (!sessions.has(sessionId)) {
+                // 메모리에 방이 없으면 생성 (Lambda DB와 별개로 소켓 관리용)
+                sessions.set(sessionId, { clients: new Set() });
             }
-
-            session.clients.set(socket, { nickname, color: '#000000', tool: 'pencil' });
-            console.log(`${nickname} joined session ${sessionId}`);
-
-            // 기존 그림 데이터 전송
-            session.drawings.forEach((drawing) => {
-                socket.send(JSON.stringify({ type: 'draw', ...drawing }));
-            });
-
-            // 사용자 목록 브로드캐스트
+            
+            const session = sessions.get(sessionId);
+            
+            // 소켓에 사용자 정보 저장
+            socket.sessionId = sessionId;
+            socket.nickname = nickname;
+            
+            session.clients.add(socket);
+            
+            console.log(`[JOIN] ${nickname} joined session ${sessionId}`);
             broadcastClients(sessionId);
-        } else if (data.type === 'draw') {
-            const { sessionId, x, y, color, tool } = data;
+        } 
+        
+        // 2. 그림 데이터 중계 (Broadcasting)
+        else if (data.type === 'draw') {
+            const { sessionId } = data;
             const session = sessions.get(sessionId);
 
             if (session) {
-                // 그림 데이터 저장
-                session.drawings.push({ x, y, color, tool });
-
-                session.clients.forEach((clientData, clientSocket) => {
-                    if (clientSocket !== socket && clientSocket.readyState === WebSocket.OPEN) {
-                        clientSocket.send(
-                            JSON.stringify({
-                                type: 'draw',
-                                x,
-                                y,
-                                color,
-                                tool,
-                            })
-                        );
+                // 나를 제외한 방 안의 모든 사람에게 전송
+                session.clients.forEach(client => {
+                    if (client !== socket && client.readyState === WebSocket.OPEN) {
+                        client.send(JSON.stringify(data));
                     }
                 });
-            }
-        } else if (data.type === 'changeTool') {
-            const { sessionId, tool } = data;
-            const session = sessions.get(sessionId);
-
-            if (session && session.clients.has(socket)) {
-                session.clients.get(socket).tool = tool;
-                console.log(`Tool changed to ${tool} in session ${sessionId}`);
             }
         }
     });
 
+    // 연결 종료 처리
     socket.on('close', () => {
-        sessions.forEach((session, sessionId) => {
-            if (session.clients.has(socket)) {
-                const { nickname } = session.clients.get(socket);
+        if (socket.sessionId && sessions.has(socket.sessionId)) {
+            const session = sessions.get(socket.sessionId);
+            if (session) {
                 session.clients.delete(socket);
-                console.log(`${nickname} disconnected from session ${sessionId}`);
-
+                console.log(`[LEAVE] ${socket.nickname} left session`);
+                
                 if (session.clients.size === 0) {
-                    sessions.delete(sessionId);
-                    console.log(`Session ${sessionId} deleted as it is empty.`);
-                    broadcastSessionList();
+                    sessions.delete(socket.sessionId); // 방 비면 삭제
                 } else {
-                    broadcastClients(sessionId);
+                    broadcastClients(socket.sessionId);
                 }
             }
-        });
+        }
     });
 });
 
-// 사용자 목록 브로드캐스트
+// 접속자 목록 전송 함수
 function broadcastClients(sessionId) {
     const session = sessions.get(sessionId);
     if (!session) return;
 
-    // 현재 세션의 모든 닉네임 목록 생성
-    const clientList = Array.from(session.clients.values()).map((clientData) => clientData.nickname);
-
-    session.clients.forEach((_, clientSocket) => {
-        if (clientSocket.readyState === WebSocket.OPEN) {
-            clientSocket.send(
-                JSON.stringify({
-                    type: 'clients',
-                    clients: clientList,
-                })
-            );
-        }
-    });
-}
-
-// 세션 목록 브로드캐스트
-function broadcastSessionList() {
-    const sessionList = Array.from(sessions.keys());
-    console.log('Broadcasting session list:', sessionList);
-    server.clients.forEach((client) => {
+    const clientList = Array.from(session.clients).map(c => c.nickname || 'Unknown');
+    session.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ type: 'sessionList', sessions: sessionList }));
+            client.send(JSON.stringify({ type: 'clients', clients: clientList }));
         }
     });
 }
