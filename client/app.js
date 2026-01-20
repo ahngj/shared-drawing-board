@@ -1,5 +1,5 @@
-const WS_URL = 'ws://15.164.210.177:3000'; // 배포 시 실제 IP/도메인 확인 필요
-const API_URL = 'https://YOUR_API_GATEWAY_URL'; // AWS API Gateway 주소를 입력하세요.
+const WS_URL = 'ws://3.27.148.153:3000'; // 배포 시 실제 IP/도메인 확인 필요
+const API_URL = 'https://l791s8zxya.execute-api.ap-southeast-2.amazonaws.com/prod'; // AWS API Gateway 주소를 입력하세요.
 
 const canvas = document.getElementById('drawing-board');
 const ctx = canvas.getContext('2d');
