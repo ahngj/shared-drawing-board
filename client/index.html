@@ -5,45 +5,69 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AWS 실시간 공유 그림판</title>
     <style>
-        body { font-family: 'Noto Sans KR', sans-serif; text-align: center; margin: 0; padding: 20px; }
+        body { font-family: 'Noto Sans KR', sans-serif; text-align: center; margin: 0; padding: 20px; background-color: #f8f9fa; }
         #lobby { display: block; }
         #game-room { display: none; }
+        
+        /* 메인 게임룸 레이아웃: 캔버스와 유저목록 가로 배치 */
+        .game-container { display: flex; justify-content: center; align-items: flex-start; gap: 20px; margin-top: 20px; }
+        
         ul { list-style: none; padding: 0; }
-        li { border: 1px solid #ddd; margin: 5px auto; padding: 10px; width: 300px; cursor: pointer; background: #f9f9f9; }
-        li:hover { background: #eee; }
-        canvas { border: 2px solid #333; cursor: crosshair; display: block; margin: 20px auto; background: #fff; }
-        .controls { margin-top: 10px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+        li { border: 1px solid #ddd; margin: 5px auto; padding: 12px; width: 320px; cursor: pointer; background: #fff; border-radius: 6px; }
+        li:hover { background: #e9ecef; }
+        
+        canvas { border: 3px solid #343a40; cursor: crosshair; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        
+        /* 우측 유저 목록 스타일 */
+        #user-list-box { width: 180px; background: #fff; border: 2px solid #343a40; border-radius: 8px; padding: 10px; height: 600px; overflow-y: auto; }
+        #user-list li { width: 90%; padding: 8px; margin: 5px auto; cursor: default; background: #f1f3f5; font-size: 14px; }
+
+        .controls { margin-bottom: 15px; display: flex; justify-content: center; gap: 10px; }
+        button { padding: 10px 18px; font-size: 15px; cursor: pointer; border-radius: 4px; border: 1px solid #dee2e6; }
+        #create-session-btn { background: #007bff; color: white; border: none; }
+
+        /* 팝업 */
         #popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                 background: white; padding: 20px; border: 2px solid #333; z-index: 100; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 50; }
-        input { display: block; margin: 10px auto; padding: 8px; width: 80%; }
+                 background: white; padding: 25px; border-radius: 10px; z-index: 100; box-shadow: 0 5px 20px rgba(0,0,0,0.3); width: 320px; }
+        #overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 50; }
+        input { display: block; margin: 12px auto; padding: 10px; width: 90%; border: 1px solid #ced4da; border-radius: 4px; }
     </style>
 </head>
 <body>
     <div id="lobby">
-        <h1>🎨 공유 그림판 로비</h1>
+        <h1>🎨 실시간 공유 그림판</h1>
         <button id="create-session-btn">방 만들기</button>
         <button id="refresh-sessions-btn">목록 새로고침</button>
         <h3>개설된 방 목록</h3>
-        <ul id="session-list"><li>방을 불러오는 중...</li></ul>
+        <ul id="session-list"><li>로드 중...</li></ul>
     </div>
+
     <div id="game-room">
         <h2 id="room-title">방 이름</h2>
         <div class="controls">
-            <label>색상: <input type="color" id="color-picker" value="#000000"></label>
+            <input type="color" id="color-picker" value="#000000">
             <button id="tool-pencil">✏️ 연필</button>
             <button id="tool-eraser">🧽 지우개</button>
-            <button id="leave-session-btn">나가기</button>
+            <button id="leave-session-btn" style="background:#dc3545; color:white;">나가기</button>
         </div>
-        <canvas id="drawing-board" width="800" height="600"></canvas>
-        <div id="user-list-box"><h4>접속자</h4><ul id="user-list"></ul></div>
+        <div class="game-container">
+            <canvas id="drawing-board" width="800" height="600"></canvas>
+            <div id="user-list-box">
+                <h4 style="margin-top:0;">접속자</h4>
+                <ul id="user-list"></ul>
+            </div>
+        </div>
     </div>
+
     <div id="overlay"></div>
     <div id="popup">
         <h3 id="popup-title">입력</h3>
-        <input type="text" id="popup-input1"><input type="password" id="popup-input2">
-        <button id="popup-submit">확인</button><button id="popup-cancel">취소</button>
+        <input type="text" id="popup-input1" placeholder="입력 1">
+        <input type="password" id="popup-input2" placeholder="입력 2">
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button id="popup-submit" style="background:#007bff; color:white;">확인</button>
+            <button id="popup-cancel">취소</button>
+        </div>
     </div>
     <script src="app.js"></script>
 </body>
