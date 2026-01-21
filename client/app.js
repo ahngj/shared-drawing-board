@@ -28,12 +28,9 @@ async function refreshSessions() {
     } catch (e) { listElement.innerHTML = '<li>로드 실패</li>'; }
 }
 
-// 1. 방 만들기 (방장 닉네임 추가 입력)
+// 1. 방 만들기 (방장용: 닉네임/방제목/비밀번호 한꺼번에 입력)
 document.getElementById('create-session-btn').onclick = () => {
-    showPopup('세션 생성', '방 제목', '비밀번호', async (name, password) => {
-        const hostNickname = prompt("방에서 사용할 닉네임을 입력하세요:", "방장");
-        if (!hostNickname) return;
-
+    showPopup('새 방 만들기', '방 제목', '비밀번호', async (userNick, name, password) => {
         try {
             const res = await fetch(`${API_URL}/create-session`, {
                 method: 'POST',
@@ -42,16 +39,18 @@ document.getElementById('create-session-btn').onclick = () => {
             });
             const result = await res.json();
             if (res.ok) {
-                sessionId = result.sessionId; nickname = hostNickname;
-                enterGameRoom(name); connectToSocket(sessionId, nickname);
+                sessionId = result.sessionId; 
+                nickname = userNick; // 입력받은 닉네임 설정
+                enterGameRoom(name); 
+                connectToSocket(sessionId, nickname);
             } else { alert(result.message); }
         } catch (e) { alert('API 오류'); }
     });
 };
 
-// 2. 방 입장 (서버 비밀번호 검증)
+// 2. 방 입장 (유저용: 닉네임/비밀번호 입력, 방 제목은 숨김)
 function joinSessionAttempt(id, name) {
-    showPopup('방 입장', '사용할 닉네임', '방 비밀번호', async (userNickname, password) => {
+    showPopup('방 입장', '사용할 닉네임', '방 비밀번호', async (userNick, nameUnused, password) => {
         try {
             const verifyRes = await fetch(`${API_URL}/verify-password`, {
                 method: 'POST',
@@ -62,8 +61,10 @@ function joinSessionAttempt(id, name) {
 
             if (!verifyRes.ok) return alert(verifyResult.message || "비밀번호가 틀렸습니다.");
 
-            sessionId = id; nickname = userNickname;
-            enterGameRoom(name); connectToSocket(sessionId, nickname);
+            sessionId = id; 
+            nickname = userNick;
+            enterGameRoom(name); 
+            connectToSocket(sessionId, nickname);
         } catch (e) { alert("검증 중 오류 발생"); }
     });
 }
@@ -88,7 +89,7 @@ function connectToSocket(roomId, userNickname) {
     ws.onclose = () => { alert('연결이 종료되었습니다.'); location.reload(); };
 }
 
-// 3. 드로잉 로직 (기존 유지)
+// 드로잉 로직 및 유틸리티
 canvas.addEventListener('mousedown', (e) => { drawing = true; lastX = e.offsetX; lastY = e.offsetY; draw(lastX, lastY, currentColor, currentTool, true); });
 canvas.addEventListener('mouseup', () => { drawing = false; });
 canvas.addEventListener('mousemove', (e) => {
@@ -117,15 +118,33 @@ document.getElementById('tool-pencil').onclick = () => currentTool = 'pencil';
 document.getElementById('tool-eraser').onclick = () => currentTool = 'eraser';
 document.getElementById('color-picker').oninput = (e) => currentColor = e.target.value;
 
+// 통합 팝업 함수 (입력 필드 유연하게 제어)
 function showPopup(title, p1, p2, callback) {
     const overlay = document.getElementById('overlay'), popup = document.getElementById('popup');
+    const nickIn = document.getElementById('popup-nickname');
     const i1 = document.getElementById('popup-input1'), i2 = document.getElementById('popup-input2');
+    
     document.getElementById('popup-title').textContent = title;
-    i1.placeholder = p1; i2.placeholder = p2; i1.value = ''; i2.value = '';
+    
+    if (title === '방 입장') {
+        i1.style.display = 'none'; // 입장 시에는 방 이름을 목록에서 이미 클릭했으므로 숨김
+    } else {
+        i1.style.display = 'block'; // 방 생성 시에는 방 이름을 입력해야 하므로 보여줌
+        i1.placeholder = p1;
+    }
+    
+    nickIn.placeholder = "사용할 닉네임";
+    i2.placeholder = p2;
+    nickIn.value = ''; i1.value = ''; i2.value = '';
+
     overlay.style.display = 'block'; popup.style.display = 'block';
+
     document.getElementById('popup-submit').onclick = () => {
-        if (!i1.value) return alert('값을 입력해주세요');
-        callback(i1.value, i2.value); overlay.style.display = 'none'; popup.style.display = 'none';
+        // 필수 값 검증 (닉네임은 무조건 필수, 방 생성일 때는 방 제목도 필수)
+        if (!nickIn.value || (title === '새 방 만들기' && !i1.value)) return alert('정보를 모두 입력해 주세요.');
+        
+        callback(nickIn.value, i1.value, i2.value); 
+        overlay.style.display = 'none'; popup.style.display = 'none';
     };
     document.getElementById('popup-cancel').onclick = () => { overlay.style.display = 'none'; popup.style.display = 'none'; };
 }
