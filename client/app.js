@@ -1,4 +1,4 @@
-const WS_URL = 'ws://3.27.148.153:3000'; 
+const WS_URL = 'ws://13.236.200.2:3000'; 
 const API_URL = 'https://l791s8zxya.execute-api.ap-southeast-2.amazonaws.com/prod'; 
 
 const canvas = document.getElementById('drawing-board');
